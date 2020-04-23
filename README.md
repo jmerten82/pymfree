@@ -22,5 +22,14 @@ have shape (n,1,N,M).
 ## Functions
 1. Radial Basis Functions (RBFs) work on batches of scalars and return batches of scalars. 
 2. Norms (distances) work on batches of coordinates and return batches of scalars. 
+3. Scalar functions are doing the same as Norms, but we won't call them that way, most importantly, they will have derivatives.
 
+## Coding style
+We will strictly following [PEP 8](https://www.python.org/dev/peps/pep-0008/) enforced by [flake8](https://flake8.pycqa.org/en/latest/) linter.
+
+## Docstring style
+Tbtk follows [numpydoc](https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard). A full example can bee seen in [example.py](https://numpydoc.readthedocs.io/en/latest/example.html#example).
+
+## Naming-style
+Classes are written in capitals and no underscores, e.g. DnATable. Class methods and functions are minor with underscores used. E.g. do_this_to_a_table(*). Names of variables shall be as descriptive as possible. Otherwise, add a single line docstring. 
  

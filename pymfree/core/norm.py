@@ -8,43 +8,6 @@ This module does the following thing...
 import torch
 
 
-# Lowest level function definitions
-def l1(x):
-    """
-    Calculates the l1 norm of a batch
-    of n samples of dimension d tensor pairs.
-    Args:
-        x torch.tensor of shape (n,d)
-    Returns:
-        torch tensor of shape (n) calculating Sum_{n=0}^{d-1}(|x|)
-    """
-    return torch.sum(torch.abs(x), axis=1)
-
-
-def l2(x):
-    """
-    Calculates the l2 norm of a batch
-    of n samples of dimension d tensor pairs.
-    Args:
-        x torch.tensor of shape (n,d)
-    Returns:
-        torch tensor of shape (n) calculating sqrt(Sum_{n=0}^{d-1}(x^2))
-    """
-    return torch.sqrt(torch.sum(x*x, axis=1))
-
-
-def linf(x):
-    """
-    Calculates the l_{infty} norm of a batch
-    of n samples of dimension d tensor pairs.
-    Args:
-        x torch.tensor of shape (n,d)
-    Returns:
-        torch tensor of shape (n) calculating max(|x_{n}|) for n 0in (0,d=1)
-    """
-    return torch.max(torch.abs(x)).values
-
-
 class Norm(object):
     """
     This is a docstring.
