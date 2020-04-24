@@ -62,3 +62,26 @@ def linf(x):
         A tensor of shape(n)
     """
     return torch.max(torch.abs(x)).values
+
+
+def ga(r, params):
+    r""" A Gaussian radial basis function with shape parameter $\epsilon$,
+
+    $f(x)=\exp\left(-(\epsilon r)^{2}\right)
+
+    Parameters
+    ----------
+    r : torch.tensor
+        Radii to be evaluated. Shape is (n), where n is the number of samples
+    params : list
+        A list  of torch tensors. Needed for this function is
+        * params[0] = torch.tensor(epsilon)
+
+    Returns
+    -------
+    torch.tensor
+        f(r) for all r. Shape of output is (n), if n was the number radii
+        provided.
+    """
+
+    return torch.exp(-torch.pow(params[0]*r), 2)

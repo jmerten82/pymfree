@@ -1,17 +1,18 @@
-# polynomial.py
-# part of pymfree
+""" polynomial.py part of pymfree/util
 
-"""
 This module provides classes and functions that handle polynomial support
 for mesh free differentiation and interpolation.
 """
+
+# Initial imports
 
 import torch
 
 
 class PolynomialSupport(object):
-    """
-    This is a docstring.
+    r""" ...
+
+    ...
     """
 
     def __init__(self, dim, degree):

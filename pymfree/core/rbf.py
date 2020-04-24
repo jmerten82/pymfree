@@ -1,19 +1,15 @@
+r""" rbf.py part of pymfree/core
+
+This module contains class and helper functions related to operations
+from pymfree scalar to pymfree scalar. in the overall context those are mainly
+radial basis functions. 
+"""
+
 # rbf.py
 # part of pymfree
 
 import torch
 
-"""
-This module does the following thing...
-"""
-
-
-def ga(r, params):
-    return torch.exp(-torch.pow(params[0]*r), 2)
-
-
-def ga_dx(r, params):
-    return 0
 
 
 class RBF(object):
