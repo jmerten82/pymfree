@@ -6,9 +6,10 @@ This module does the following...
 """
 
 import torch
+from pymfree.core.norm import Norm
 
 
-class MeshFreeDomain(object):
+class Domain(object):
     """
     This is a docstring.
     """
@@ -24,4 +25,12 @@ class MeshFreeDomain(object):
         pass
 
     def __next__(self):
+        pass
+
+
+class DomainFunction(Norm):
+    r"""
+
+    """
+    def __init__(self):
         pass

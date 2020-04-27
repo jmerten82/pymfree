@@ -1,6 +1,6 @@
 """ derivative.py part pymfree/core
 
-This module provides classes and helper functions that deal with 
+This module provides classes and helper functions that deal with
 derivatives. Their functional implementation and properties.
 """
 

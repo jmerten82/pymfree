@@ -5,7 +5,7 @@ This mainly implements the ideas described [here](https://www.colorado.edu/amath
 
 
 ## Data, index and coordinate conventions
-1. Every quantity in this package shall be represented as a PyTorch tensor. 
+1. Every main quantity in this package shall be represented as a PyTorch tensor. 
 
 2. Every quantity in this package shall be batched, meaning that the leading array index is always the batch/sample index.
 
@@ -22,7 +22,10 @@ have shape (n,1,N,M).
 ## Functions
 1. Radial Basis Functions (RBFs) work on batches of scalars and return batches of scalars. 
 2. Norms (distances) work on batches of coordinates and return batches of scalars. 
-3. Scalar functions are doing the same as Norms, but we won't call them that way, most importantly, they will have derivatives.
+3. Domain functions are doing the same as Norms, but we won't call them that way, most importantly though, they can have derivatives.
+
+## Derivatives
+Derivatives in this package are not strictly derivatives, but rather classes describing the properties of derivatives. The functional form of derivatives has still to be implemented by hand. Although it remains to be seen to what extend we can use PyTorch's Autograd consecutively in the future. 
 
 ## Coding style
 We will strictly following [PEP 8](https://www.python.org/dev/peps/pep-0008/) enforced by [flake8](https://flake8.pycqa.org/en/latest/) linter.
