@@ -22,7 +22,7 @@ have shape (n,1,N,M).
 ## Functions
 1. Radial Basis Functions (RBFs) work on batches of scalars and return batches of scalars. 
 2. Norms (distances) work on batches of coordinates and return batches of scalars. 
-3. Domain functions are doing the same as Norms, but we won't call them that way, most importantly though, they can have derivatives.
+3. Domain functions are doing the same as Norms, but we won't call them that way, most importantly though, they can have external parameters.
 
 ## Derivatives
 Derivatives in this package are not strictly derivatives, but rather classes describing the properties of derivatives. The functional form of derivatives has still to be implemented by hand. Although it remains to be seen to what extend we can use PyTorch's Autograd consecutively in the future. 
