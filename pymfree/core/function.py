@@ -9,10 +9,10 @@ parameters.
 
 import torch
 import numpy
-from pymfree.core.functional import check_functional
-from pymfree.core.functional import l1
-from pymfree.core.functional import l2
-from pymfree.core.functional import linf
+from pymfree.util.functional import check_functional
+from pymfree.util.functional import l1
+from pymfree.util.functional import l2
+from pymfree.util.functional import linf
 
 
 class Norm(object):
@@ -26,12 +26,10 @@ class Norm(object):
     Parameters
     ----------
     F : callable function
-        The functional form for the metric. Must be a function that takes
-        two torch tensors or numpy arrays of coordinates and retuns a batch
-        of Scalars. This is tested at construction.
+        The functional form for the metric. Must pass check_functional().
 
     numpy : bool, optional
-        Falg indication if the output shall be a numpy array instead of a
+        Flag indication if the output shall be a numpy array instead of a
         torch tensor. Default to False.
 
     Raises
@@ -41,9 +39,9 @@ class Norm(object):
 
     See also
     --------
-    pymfree.core.functional
+    pymfree.util.functional
         For function implementations.
-    pymfree.core.functional.check_functional
+    pymfree.util.functional.check_functional
         Checks if the provided functional fulfills all requirements. Here this
         called with not requesting an input scalar but the output must be
         scalar.
@@ -57,6 +55,27 @@ class Norm(object):
 
         self.F = check_functional(F)
         self.array_out = numpy
+
+    def __str__(self):
+        r""" String representation of the class.
+
+        Shows class name and the functional form underlying the norm.
+
+        Returns
+        -------
+        str
+            Representation string.
+        """
+        one = str(self.__class__.__name__)
+        one = one[one.rfind('.')+1:one.rfind('\'')]
+        two = str(self.F).split(' ')[1]
+        return str(one + "\n" + "Functional form: " + two)
+
+    def __repr__(self):
+        r""" Prints string representation.
+        """
+
+        print(self)
 
     def __call__(self, x1, x2=None):
         r""" The call operator for the norm.
@@ -248,16 +267,274 @@ class LInfNorm(Norm):
         super().__init__(linf, numpy)
 
 
-class DomainFunction(object):
+class RadialBasisFunction(object):
+    r""" Transforms scalar into scalar.
+
+    A radial basis function (RBF), which can carry external parameters.
+    Could inherit from Norm,
+    but does not in order order avoid overhead.
+
+    Parameters
+    ----------
+    F : pymfree.util.functional
+        The functional form of the RBF. Must pass check_functional().
+    params : dict, optional
+        A dict with a short parameter description as key and a function
+        parameter as value. Defaults to None.
+    numpy : bool, optional
+        Flag indication if the output shall be a numpy array instead of a
+        torch tensor. Default to False.
+
+    Attributes
+    ----------
+    params : torch.Tensor
+        A 1D torch tensor holding the class parameters. torch.tensor(0) if
+        there are none.
+    descr : list
+        A list of strings that describe the class parameters. Empty list p[]
+        if there are none.
+
+    Raises
+    ------
+    various
+        check_functional with scalar_in flag is carried out. See below.
+
+    See also
+    --------
+    pymfree.util.functional
+        For function implementations.
+    pymfree.util.functional.check_functional
+        Checks if the provided functional fulfills all requirements. Here this
+        called requesting an input scalar and the output must be
+        scalar.
+
+    References
+    ----------
+    [1] [Wikiepdia on radial basis functions]
+            (https://en.wikipedia.org/wiki/Radial_basis_function)
+    """
 
     def __init__(self, F, params=None, numpy=False):
-        pass
+        self.F = check_functional(F, scalar_in=True)
+        self.array_out = numpy
+        if params is not None:
+            if not isinstance(params, dict):
+                raise TypeError("PyMFree RBF: Parameters must be a dict.")
+            self.descr, aux = zip(
+                    *[(key, value) for key, value in params.items()])
+            self.params = torch.tensor(aux)
+        else:
+            self.descr = []
+            self.params = torch.tensor(0)
 
-    def __call__(x):
-        pass
+    def __str__(self):
+        r""" String representation of the class.
 
-    def no_checks(x):
-        pass
+        Shows class name and the functional form underlying the norm, followed
+        by the parameter descriptions and values
+
+        Returns
+        -------
+        str
+            Representation string.
+        """
+        one = str(self.__class__.__name__)
+        one = one[one.rfind('.')+1:one.rfind('\'')]
+        two = str(self.F).split(' ')[1]
+        three = str(self.get_params())
+        out = (one + "\n" + "Functional form: " + two + "Parameters: " + three)
+        return str(out)
+
+    def __repr__(self):
+        r""" Prints string representation.
+        """
+
+        print(self)
+
+    def __call__(self, x):
+        r""" RBF function call.
+
+        Retuns the radial basis function values for the provided radii batch.
+
+        Parameters
+        ----------
+        x : torch.tensor or numpy.ndarray
+            The batch  of input radii. Must be a scalar.
+
+        Returns
+        -------
+        torch.Tensor or numpy.ndarray
+            A batch of radial basis function values for the batch of radii.
+            Output object type depends on array_out attribute.
+
+        Raises
+        ------
+        TypeError
+            If x is not a torch tensor or numpy array.
+        TypeError
+            If input is not a batch of scalars.
+        """
+        if not isinstance(x, torch.Tensor):
+            if not isinstance(x, numpy.ndarray):
+                raise TypeError(
+                 "PyMFree RBF: Need torch tensor or numpy array.")
+            else:
+                x = torch.tensor(x)
+
+        if len(x.shape) != 1:
+            raise TypeError(
+                "PyMFree RBF: Need scalar, batched torch Tensor of shape (n).")
+
+        if self.array_out:
+            return self.F(x).numpy()
+        else:
+            return self.F(x)
+
+    def get_params(self):
+        r""" Returns the class parameters and their descrptions as a dict.
+
+        Packs the descr and params attributes into a dict and returns it.
+
+        Returns
+        -------
+        dict
+            {descr:params} pairs for all class parameters.
+        """
+        return {key: value for (key, value) in zip(self.descr, self.params)}
+
+    def no_checks(self, x):
+        r""" Raw wrap for direct self.F call.
+
+        Parameters
+        ----------
+        x : torch.tensor
+            The batch of input radii.
+
+        Returns
+        -------
+        torch.Tensor
+            A batch of radial basis function values for the batch of radii.
+        """
+
+        return self.F(x)
 
     def to(self, device=torch.device('cpu')):
-        pass
+        r""" Send RBF to a specific torch device.
+
+        The params tensor is sent to the specfied device.
+
+        Parameters
+        ----------
+        device : torch.device
+            The torch device you want the RBF to live at.
+
+        Raises
+        ------
+        TypeError
+            If device is not of type torch.device
+
+        Example
+        -------
+        rbf.to(device=torch.device('gpu:0'))
+        """
+
+        if not isinstance(device, torch.device):
+            raise TypeError("PyMFree RBF: Need torch.device.")
+        self.params = self.params.to(device)
+
+
+class DomainFunction(RadialBasisFunction):
+    r""" Transforms coordinates into scalars.
+
+    A standard function on a Domain, which can carry external parameters.
+    Inherits some basic functions from RadialBasisFunction.
+
+    Parameters
+    ----------
+    F : pymfree.util.functional
+        The functional form DomainFunction. Must pass check_functional().
+    params : dict, optional
+        A dict with a short parameter description as key and a function
+        parameter as value. Defaults to None.
+    numpy : bool, optional
+        Flag indication if the output shall be a numpy array instead of a
+        torch tensor. Default to False.
+
+    Attributes
+    ----------
+    params : torch.Tensor
+        A 1D torch tensor holding the class parameters. torch.tensor(0) if
+        there are none.
+    descr : list
+        A list of strings that describe the class parameters. Empty list p[]
+        if there are none.
+
+    Raises
+    ------
+        various
+            check_functional is carried out. See below.
+        TypeError
+            If params is not None and not a dict.
+
+    See also
+    --------
+    pymfree.util.functional
+        For function implementations.
+    pymfree.util.functional.check_functional
+        Checks if the provided functional fulfills all requirements. Here this
+        called with not requesting an input scalar but the output must be
+        scalar.
+    """
+
+    def __init__(self, F, params=None, numpy=False):
+        self.F = check_functional(F)
+        self.array_out = numpy
+        if params is not None:
+            if not isinstance(params, dict):
+                raise TypeError(
+                    "PyMFree DomainFunction: Parameters must be a dict.")
+            self.descr, aux = zip(
+                    *[(key, value) for key, value in params.items()])
+            self.params = torch.tensor(aux)
+        else:
+            self.descr = []
+            self.params = torch.tensor(0)
+
+    def __call__(x, self):
+        r""" DomainFunction call.
+
+        Retuns the function values for the provided coordinate batch.
+
+        Parameters
+        ----------
+        x : torch.tensor or numpy.ndarray
+            The batch  of input coordinates. Must be a valid coordinate.
+
+        Returns
+        -------
+        torch.Tensor or numpy.ndarray
+            A batch of function values for the batch of coordinates.
+            Output object type depends on array_out attribute.
+
+        Raises
+        ------
+        TypeError
+            If x is not a torch tensor or numpy array.
+        TypeError
+            If input is not a batch of coordinates.
+        """
+        if not isinstance(x, torch.Tensor):
+            if not isinstance(x, numpy.ndarray):
+                raise TypeError(
+                 "PyMFree DomainFunction: Need torch tensor or numpy array.")
+            else:
+                x = torch.tensor(x)
+
+        if len(x.shape) != 2:
+            raise TypeError(
+                "PyMFree DomainFunction: Need torch Tensor of shape (n,d).")
+
+        if self.array_out:
+            return self.F(x).numpy()
+        else:
+            return self.F(x)
