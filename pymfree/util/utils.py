@@ -36,3 +36,18 @@ def any_norm_nn_search(support, query, norm, k=32):
         result[i, :] = dists[: k]
         indices[i, :] = numbers[: k]
     return result, indices
+
+
+def scale_params(coordinates, min_in=-1., max_in=1.):
+    axis = torch.argmax(
+        torch.max(coordinates, axis=0).values - torch.min(
+            coordinates, axis=0).values).item()
+    cmax = torch.max(coordinates[:, axis])
+    cmin = torch.min(coordinates[:, axis])
+    dist = cmax - cmin
+    target_dist = max_in - min_in
+    scale = target_dist/dist
+    coordinates = coordinates*scale
+    cmin = torch.min(coordinates[:, axis])
+    shift = min_in - cmin
+    return scale, shift

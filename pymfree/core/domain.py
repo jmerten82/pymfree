@@ -6,12 +6,12 @@ is defined by a number of n-dim support nodes and a norm on that domain.
 import torch
 import faiss
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 from pymfree.core.function import Norm
 from pymfree.core.function import L1Norm
 from pymfree.core.function import L2Norm
 from pymfree.core.function import LInfNorm
 from pymfree.core.function import DomainFunction
+from pymfree.util.utils import scale_params
 
 
 class Domain(object):
@@ -95,7 +95,7 @@ class Domain(object):
         self.neighbour_map = None
         self.neighbour_distances = None
         self.__counter = 0
-        self.scaler = None
+        self.scaler = {}
         self.k = torch.tensor([k])
         self.shift = torch.tensor([0.])
         self.scale = torch.tensor([1.])
@@ -136,21 +136,21 @@ class Domain(object):
         return print(self)
 
     def __call__(self, x):
+        if len(self.scaler) != 0:
+            pass
         pass
 
     def __getitem__(self):
         pass
 
-    def rescale_coordinates(self, min=-1., max=1.):
+    def rescale_coordinates(self, min_in=-1., max_in=1.):
         if not isinstance(min, float) or not isinstance(max, float):
             raise TypeError("PyMfree Domain: domain bounds must be float.")
-        self.scaler = MinMaxScaler(feature_range=(min, max))
-
-        max_col = torch.argmax(
-                    torch.max(
-                        self.node_coordinates, axis=0).values - torch.min(
-                            self.node_coordinates, axis=0).values).item()
-        self.scaler.fit(self.node_coordinates[:, max_col].unsqueeze(axis=1))
+        self.scale['scale'], self.scale['shift'] = scale_params(
+            self.coordinates, min_in, max_in)
+        self.scale['new_unit'] = max_in - min_in
+        self.coordinates *= self.scale['scale']
+        self.coordinates += self.scale['shift']
 
     def to(self, device=torch.device('cpu')):
         pass
