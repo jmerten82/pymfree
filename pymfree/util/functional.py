@@ -49,7 +49,7 @@ def check_functional(f, scalar_in=False, scalar_out=True):
         test_x = torch.rand(10, 3)
 
     try:
-        f(torch.rand(1), torch.rand(1))
+        f(torch.rand(1, 1), torch.rand(1, 1))
     except Exception as e:
         if str(e).find("positional argument but 2 were given"):
             raise TypeError("check_functional: need two arguments.")
@@ -123,6 +123,26 @@ def linf(x, params=None):
         A tensor of shape(n)
     """
     return torch.max(torch.abs(x)).values
+
+
+def l2l2(x, params=None):
+    r""" L_{2} norm
+
+    Calculates the squared L2 norm of a batch of n samples
+    of d-dimensional tensors.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        A tensor of shape(n,d)
+
+    Returns
+    -------
+    torch.tensor
+        A tensor of shape(n)
+    """
+
+    return torch.sum(x*x, axis=1)
 
 
 def ga(r, params):

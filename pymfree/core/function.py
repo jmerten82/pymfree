@@ -13,6 +13,7 @@ from pymfree.util.functional import check_functional
 from pymfree.util.functional import l1
 from pymfree.util.functional import l2
 from pymfree.util.functional import linf
+from pymfree.util.functional import l2l2
 
 
 class Norm(object):
@@ -208,7 +209,7 @@ class L2Norm(Norm):
 
     See also
     --------
-    pymfree.core.norm.Norm
+    pymfree.core.function.Norm
 
     References
     ----------
@@ -216,6 +217,31 @@ class L2Norm(Norm):
     r"""
     def __init__(self, numpy=False):
         super().__init__(l2, numpy)
+
+
+class L2SquaredNorm(Norm):
+    r""" A fast-lane implementation of the squared l2-norm.
+
+    This inherits from L2Norm and delivers the l2-norm by simply calling
+    the general constructor with fixed function l2l2.
+
+    Parameters
+    ----------
+    numpy : bool, optional
+        Falg indication if the output shall be a numpy array instead of a
+        torch tensor. Default to False.
+
+
+    See also
+    --------
+    pymfree.core.function.Norm
+
+    References
+    ----------
+    [1] [L2-Norm on Wolfram](https://mathworld.wolfram.com/L2-Norm.html)
+    r"""
+    def __init__(self, numpy=False):
+        super().__init__(l2l2, numpy)
 
 
 class L1Norm(Norm):

@@ -4,9 +4,13 @@ This module implements a central PyMfree entity, which is a domain. This domain
 is defined by a number of n-dim support nodes and a norm on that domain.
 """
 import torch
-import numpy
+import faiss
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 from pymfree.core.function import Norm
+from pymfree.core.function import L1Norm
 from pymfree.core.function import L2Norm
+from pymfree.core.function import LInfNorm
 from pymfree.core.function import DomainFunction
 
 
@@ -15,30 +19,54 @@ class Domain(object):
     This is a docstring.
     """
 
-    def __init__(self, coordinates, values, norm=L2Norm, query='self', dim=2):
+    def __init__(self, coordinates, values, norm=L2Norm, k=32, dim=2):
         if isinstance(coordinates, list):
-            # self.dim = dim
-            pass
-        elif isinstance(coordinates, numpy.ndarray):
-            self.dim = None
-            pass
+            self.node_coordinates = torch.tensor(coordinates)[
+                :-(len(coordinates) % dim)].reshape(-1, dim)
+        elif isinstance(coordinates, np.ndarray):
+            if len(coordinates.shape) == 1:
+                self.node_coordinates = torch.tensor(coordinates)[
+                    :-(len(coordinates) % dim)].reshape(-1, dim)
+            elif len(coordinates.shape) == 2:
+                self.node_coordinates = torch.tensor(coordinates)
+            else:
+                raise TypeError(
+                    "PyMfree Domain: Input array dimensions invalid")
         elif isinstance(coordinates, torch.Tensor):
-            self.dim = None
+            if len(coordinates.shape) == 1:
+                self.node_coordinates = coordinates[
+                    :-(len(coordinates) % dim)].reshape(-1, dim)
+            elif len(coordinates.shape) == 2:
+                self.node_coordinates = coordinates
+            else:
+                raise TypeError(
+                    "PyMfree Domain: Input array dimensions invalid")
             pass
         else:
             raise TypeError(
                 "PyMfree Domain: Input coordinates must \
                         be torch tensor, numpy array or list.")
-        self.node_coordinates = None
 
         if isinstance(values, DomainFunction):
-            pass
+            self.node_values = values(self.node_coordinates)
         elif isinstance(values, list):
-            pass
-        elif isinstance(values, numpy.ndarray):
-            pass
+            if len(values) < len(self):
+                raise TypeError(
+                    "PyMfree Domain: Node value list too short.")
+            else:
+                self.node_values = torch.tensor(values[:len(self)])
+        elif isinstance(values, np.ndarray):
+            if len(values) < len(self) or len(values.shape != 1):
+                raise TypeError(
+                    "PyMfree Domain: Node value array invalud.")
+            else:
+                self.node_values = torch.tensor(values[:len(self)])
         elif isinstance(values, torch.Tensor):
-            pass
+            if len(values) < len(self) or len(values.shape != 1):
+                raise TypeError(
+                    "PyMfree Domain: Node value array invalud.")
+            else:
+                self.node_values = values[:len(self)]
         else:
             raise TypeError(
                 "PyMfree Domain: Input values must come from DomainFunction \
@@ -49,16 +77,28 @@ class Domain(object):
             raise TypeError("PyMfree Domain: Need a proper Norm on Domain.")
         self.norm = norm
 
-        if query == 'self':
-            self.query = self.node_coordinates
-        elif isinstance(query, list):
-            pass
-        elif isinstance(query, numpy.ndarray):
-            pass
-        elif isinstance(query, torch.Tensor):
-            raise TypeError("PyMfree Domain: Query coordinates must the domain \
-                    a torch tensor, numpy array or list.")
+        if isinstance(self.norm, L1Norm):
+            self.index = faiss.IndexFlat(self.dim, faiss.METRIC_L1)
+        elif isinstance(self.norm, L2Norm):
+            self.index = faiss.IndexFlatL2(self.dim)
+        elif isinstance(self.norm, LInfNorm):
+            self.index = faiss.IndexFlat(self.dim, faiss.METRIC_Linf)
+        else:
+            self.index = None
+
+        if isinstance(k, int):
+            self.k = k
+        else:
+            raise TypeError("PyMfree Domain: k must be an integer.")
+
         self.query = None
+        self.neighbour_map = None
+        self.neighbour_distances = None
+        self.__counter = 0
+        self.scaler = None
+        self.k = torch.tensor([k])
+        self.shift = torch.tensor([0.])
+        self.scale = torch.tensor([1.])
 
     def __len__(self):
         return len(self.node_coordinates)
@@ -67,24 +107,66 @@ class Domain(object):
         return self
 
     def __next__(self):
-        pass
+        if self.__counter > len(self)-1:
+            self.__counter = 0
+            raise StopIteration
+        else:
+            self.__counter += 1
+            return self.node_coordinates[
+                self.__counter-1], self.node_values[self.__counter-1]
 
     def __str__(self):
-        pass
+        one = str(self.__class__.__name__)
+        one = one[one.rfind('.')+1:one.rfind('\'')]
+        two = str(
+            len(self) + "Nodes; \t" + str(self.dim) + "spatial dimensions.")
+        three = str(self.index.__class__.__name__) + "performs fast nn search."
+        if self.query_ready:
+            four = str(len(self.query)) + " point query established."
+        else:
+            four = "No query in Domain."
+        if self.scaler is None:
+            five = "No coordinate rescaling."
+        else:
+            five = "Coordinates rescaled into " \
+                + str(self.scaler.get_params()['feature_range']) + " domain."
+        print(one+"\n"+two+"\n"+three+"\n"+four+"\n"+five)
 
     def __repr__(self):
         return print(self)
 
-    def __call__(self):
+    def __call__(self, x):
         pass
 
     def __getitem__(self):
         pass
 
+    def rescale_coordinates(self, min=-1., max=1.):
+        if not isinstance(min, float) or not isinstance(max, float):
+            raise TypeError("PyMfree Domain: domain bounds must be float.")
+        self.scaler = MinMaxScaler(feature_range=(min, max))
+
+        max_col = torch.argmax(
+                    torch.max(
+                        self.node_coordinates, axis=0).values - torch.min(
+                            self.node_coordinates, axis=0).values).item()
+        self.scaler.fit(self.node_coordinates[:, max_col].unsqueeze(axis=1))
+
+    def to(self, device=torch.device('cpu')):
+        pass
+
     @property
     def shape(self):
-        return {'nodes': len(self), 'dim': self.dim}
+        if self.query_ready:
+            helper = len(self.query_ready)
+        else:
+            helper = 0
+        return {'nodes': len(self), 'dim': self.dim, 'query': helper}
 
     @property
     def dim(self):
         return self.node_coordinates.shape[1]
+
+    @property
+    def query_ready(self):
+        return isinstance(self.query, torch.Tensor)
