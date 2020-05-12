@@ -51,3 +51,39 @@ def scale_params(coordinates, min_in=-1., max_in=1.):
     cmin = torch.min(coordinates[:, axis])
     shift = min_in - cmin
     return scale, shift
+
+
+def asymmetric_distances(x):
+    """
+    No checks on this since this is a deep-inside-module helper routine.
+    x must be a batch of coordinates.
+    """
+    out = []
+    for i in range(len(x)-1):
+        out.append(x[i]-x[i+1:])
+    return torch.cat(out)
+
+
+def insert_A_in_AP_matrix(a_flat, AP, k):
+    """
+    No checks on this since this is a deep-inside-module helper routine.
+    a_flat must be a batch of vectors (n, 1, N). AP a batch of matrices
+    (n, 1, N, N). k is the number of nn.
+    """
+    start = 0
+    length = k-1
+    for i in range(k-1):
+        end = start+length
+        AP[:, :, i, i+1:k] = a_flat[:, :, start:end]
+        start = end
+        length -= 1
+    return AP
+
+
+def symmetrise_AP(AP):
+    """
+    No checks on this since this is a deep-inside-module helper routine.
+    AP must be a batch of matrices (n, 1, N, N).
+    """
+
+    return AP + AP.transpose(2, 3)
