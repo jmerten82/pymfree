@@ -56,12 +56,12 @@ def scale_params(coordinates, min_in=-1., max_in=1.):
 def asymmetric_distances(x):
     """
     No checks on this since this is a deep-inside-module helper routine.
-    x must be a batch of coordinates.
+    x must be a batch of nn coordinate collections (n,1,k,d)
     """
     out = []
-    for i in range(len(x)-1):
-        out.append(x[i]-x[i+1:])
-    return torch.cat(out)
+    for i in range(x.shape[2]-1):
+        out.append(x[:, :, i:i+1]-x[:, :, i+1:])
+    return torch.cat(out, 2)
 
 
 def insert_A_in_AP_matrix(a_flat, AP, k):
