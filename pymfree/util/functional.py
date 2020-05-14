@@ -6,6 +6,7 @@ This collects bare-bones, torch-based functions.
 # Basic imports
 
 import torch
+from pymfree.util.utils import check_pymfree_type
 
 
 def check_functional(f, scalar_in=False, scalar_out=True):
@@ -63,7 +64,7 @@ def check_functional(f, scalar_in=False, scalar_out=True):
     if len(result) != 10:
         raise TypeError("check_functional: Output batch has wrong size.")
     if scalar_out:
-        if len(result.shape) != 1:
+        if not check_pymfree_type(result)['scalar']:
             raise TypeError("check_functional: Output is not a scalar.")
 
     return f

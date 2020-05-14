@@ -9,17 +9,27 @@ import torch
 from pymfree.core.function import Norm
 
 
+def check_pymfree_type(x):
+    out = {}
+    out['scalar'] = isinstance(x, torch.Tensor) and len(x.shape) == 1
+    out['coordinate'] = isinstance(x, torch.Tensor) and len(x.shape) == 2
+    out['vector'] = isinstance(x, torch.Tensor) and \
+        len(x.shape) == 3 and x.shape[1] == 1
+    out['matrix'] = isinstance(x, torch.Tensor) and \
+        len(x.shape) == 4 and x.shape[1] == 1
+    out['else'] = isinstance(x, torch.Tensor) and \
+        len(x.shape) > 4 and x.shape[1] == 1
+    return out
+
+
 def any_norm_nn_search(support, query, norm, k=32):
     """
     Needs a docstring.
     """
-    if not isinstance(support, torch.Tensor):
-        raise TypeError("PyMfree nn search: Support must be a tensor.")
-    if not isinstance(query, torch.Tensor):
-        raise TypeError("PyMfree nn search: Query must be a tensor.")
-    if len(support.shape) != 2 or len(query.shape) != 2:
-        raise TypeError(
-            "PyMfree nn search: Query and support must be coordinates")
+    if not check_pymfree_type(support)['coordinate']:
+        raise TypeError("PyMfree nn search: Support must be coordinates")
+    if not check_pymfree_type(query)['coordinate']:
+        raise TypeError("PyMfree nn search: Query must be coordinates")
     if not isinstance(norm, Norm):
         raise TypeError(
             "PyMfree nn search: Norm must be PyMfree norm.")
@@ -27,8 +37,9 @@ def any_norm_nn_search(support, query, norm, k=32):
         raise TypeError("PyMfree nn search: k must be integer.")
 
     n = len(query)
-    result = torch.zeros(n, k, dtype=torch.float32)
-    indices = torch.zeros(n, k, dtype=torch.int64)
+    device = support.device
+    result = torch.zeros(n, k, dtype=torch.float32, device=device)
+    indices = torch.zeros(n, k, dtype=torch.int64, device=device)
     for i, element in enumerate(query):
         current = torch.sub(support, element)
         current = norm.no_checks(current)

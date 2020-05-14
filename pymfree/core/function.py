@@ -310,6 +310,10 @@ class RadialBasisFunction(object):
     numpy : bool, optional
         Flag indication if the output shall be a numpy array instead of a
         torch tensor. Default to False.
+    device : torch.device, optional
+        The device on which the RBF exists. In practice, this means where
+        the parameter tensor is stored. Can be changed with to(device)
+        later on. Defaults to torch.device('cpu').
 
     Attributes
     ----------
@@ -333,6 +337,8 @@ class RadialBasisFunction(object):
         Checks if the provided functional fulfills all requirements. Here this
         called requesting an input scalar and the output must be
         scalar.
+    pymfree.core.function.RadialBasisFunction.to()
+        Change the device of the RBF.
 
     References
     ----------
@@ -340,7 +346,8 @@ class RadialBasisFunction(object):
             (https://en.wikipedia.org/wiki/Radial_basis_function)
     """
 
-    def __init__(self, F, params=None, numpy=False):
+    def __init__(
+            self, F, params=None, numpy=False, device=torch.device('cpu')):
         self.F = check_functional(F, scalar_in=True)
         self.array_out = numpy
         if params is not None:
@@ -348,10 +355,10 @@ class RadialBasisFunction(object):
                 raise TypeError("PyMFree RBF: Parameters must be a dict.")
             self.descr, aux = zip(
                     *[(key, value) for key, value in params.items()])
-            self.params = torch.tensor(aux)
+            self.params = torch.tensor(aux, device=device)
         else:
             self.descr = []
-            self.params = torch.tensor(0)
+            self.params = torch.tensor(0, device=device)
 
     def __str__(self):
         r""" String representation of the class.
@@ -405,7 +412,9 @@ class RadialBasisFunction(object):
                 raise TypeError(
                  "PyMFree RBF: Need torch tensor or numpy array.")
             else:
-                x = torch.tensor(x)
+                x = torch.tensor(x, device=self.device)
+        else:
+            x.to(self.device)
 
         if len(x.shape) != 1:
             raise TypeError(
@@ -415,6 +424,19 @@ class RadialBasisFunction(object):
             return self.F(x).numpy()
         else:
             return self.F(x)
+
+    @property
+    def device(self):
+        r""" Returns the device the RBF resides on.
+
+        Queries torch device from parameter vector.
+
+        Returns
+        -------
+        torch.device
+        Torch device where the parameter vector is held.
+        """
+        return self.params.device
 
     def get_params(self):
         r""" Returns the class parameters and their descrptions as a dict.
@@ -427,6 +449,62 @@ class RadialBasisFunction(object):
             {descr:params} pairs for all class parameters.
         """
         return {key: value for (key, value) in zip(self.descr, self.params)}
+
+    def set_params(self, locs, values):
+        r""" Changes the parameters of the function.
+
+        Either single values or several parameters can be changed
+        with one call.
+
+        Parameters
+        ----------
+        locs : int or str, list of int or str
+        The location of the parameter you want to change. Either the index in
+        the parameter vector or its name stored in the description.
+        variants can also be given as a list.
+
+        Raises
+        ------
+        TypeError
+            If format of locs and values does not match. Either one a list,
+            the other a value or vice-versa.
+        Warning to stdout
+            If not all parameter names in str list are found.
+        TypeError
+            If Parameter locations are not str, int or list of strs and ints.
+        TypeError
+            If single provided parameter value is not float.
+        """
+        if isinstance(locs, list):
+            if not isinstance(values, list) or len(locs) != len(values):
+                raise TypeError(
+                    "PyMFree RBF: Parameter values do not \
+                                    fit your provided location.")
+            if isinstance(locs[0], int):
+                indeces = locs
+            elif isinstance(locs[0], str):
+                indeces = [
+                    i for i, word in enumerate(self.descr) if word in locs]
+                if(len(indeces) != len(locs)):
+                    print("PyMFree RBF WARNING: Not all parameters in your \
+                    list where found.")
+            else:
+                raise TypeError(
+                    "PyMFree RBF: Parameter locs must be int or str.")
+        else:
+            if not isinstance(values, float):
+                raise TypeError(
+                    "PyMFree RBF: Provided Parameter value must be float.")
+            if isinstance(locs, int):
+                indeces = locs
+            elif isinstance(locs, str):
+                indeces = [
+                    i for i, word in enumerate(self.descr) if word == locs]
+            else:
+                raise TypeError("PyMFree RBF: Parameter locations must be \
+                                a list, str, or int.")
+
+        self.params[indeces] = torch.tensor(values, device=self.device)
 
     def no_checks(self, x):
         r""" Raw wrap for direct self.F call.
@@ -485,6 +563,10 @@ class DomainFunction(RadialBasisFunction):
     numpy : bool, optional
         Flag indication if the output shall be a numpy array instead of a
         torch tensor. Default to False.
+    device : torch.device, optional
+        The device on which the RBF exists. In practice, this means where
+        the parameter tensor is stored. Can be changed with to(device)
+        later on. Defaults to torch.device('cpu').
 
     Attributes
     ----------
@@ -512,7 +594,8 @@ class DomainFunction(RadialBasisFunction):
         scalar.
     """
 
-    def __init__(self, F, params=None, numpy=False):
+    def __init__(
+            self, F, params=None, numpy=False, device=torch.device('cpu')):
         self.F = check_functional(F)
         self.array_out = numpy
         if params is not None:
@@ -521,10 +604,10 @@ class DomainFunction(RadialBasisFunction):
                     "PyMFree DomainFunction: Parameters must be a dict.")
             self.descr, aux = zip(
                     *[(key, value) for key, value in params.items()])
-            self.params = torch.tensor(aux)
+            self.params = torch.tensor(aux, device=device)
         else:
             self.descr = []
-            self.params = torch.tensor(0)
+            self.params = torch.tensor(0, device=device)
 
     def __call__(x, self):
         r""" DomainFunction call.
@@ -554,7 +637,9 @@ class DomainFunction(RadialBasisFunction):
                 raise TypeError(
                  "PyMFree DomainFunction: Need torch tensor or numpy array.")
             else:
-                x = torch.tensor(x)
+                x = torch.tensor(x, device=self.device)
+        else:
+            x.to(self.device)
 
         if len(x.shape) != 2:
             raise TypeError(
