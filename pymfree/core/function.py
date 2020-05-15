@@ -9,11 +9,72 @@ parameters.
 
 import torch
 import numpy
-from pymfree.util.functional import check_functional
+from pymfree.util.utils import check_pymfree_type
 from pymfree.util.functional import l1
 from pymfree.util.functional import l2
 from pymfree.util.functional import linf
 from pymfree.util.functional import l2l2
+
+
+def check_functional(f, scalar_in=False, scalar_out=True):
+    r""" Check lowest level functions
+
+    Checks if a pymfree functional is valid. Meaning that it accepts parameters
+    and delivers batched results.
+
+    Parameters
+    ----------
+    f : callable
+        The function to be tested.
+    scalar_in : bool, optional
+        If this is set, the functional is tested with a scalar. Defaults to
+        False.
+    scalar_out : bool, optional
+        Flag if output is checked to be a scalar. Defaults to True.
+
+    Returns
+    -------
+    callable
+        The tested function if passed tests.
+
+    Raises
+    ------
+    TypeError
+        If function does not accept two arguments.
+    RuntimeError
+        If exception is raised when called with coordinate batch and
+        parameter vector.
+    TypeError
+        If no torch.Tensor is produced.
+    TypeError
+        If the output batch has the wrong length.
+    TypeError
+        If scalar flag is set and the output is not a scalar.
+    r"""
+    if scalar_in:
+        test_x = torch.rand(10)
+    else:
+        test_x = torch.rand(10, 3)
+
+    try:
+        f(torch.rand(1, 1), torch.rand(1, 1))
+    except Exception as e:
+        if str(e).find("positional argument but 2 were given"):
+            raise TypeError("check_functional: need two arguments.")
+    try:
+        result = f(test_x, torch.rand(5))
+
+    except Exception:
+        raise RuntimeError("check_functional: was not able to call funtional.")
+    if not isinstance(result, torch.Tensor):
+        raise TypeError("check_functional: No torch tensor produced.")
+    if len(result) != 10:
+        raise TypeError("check_functional: Output batch has wrong size.")
+    if scalar_out:
+        if not check_pymfree_type(result)['scalar']:
+            raise TypeError("check_functional: Output is not a scalar.")
+
+    return f
 
 
 class Norm(object):

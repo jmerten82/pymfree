@@ -9,47 +9,156 @@ derivatives. Their functional implementation and properties.
 import numpy as np
 import torch
 from pymfree.core.norm import DomainFunction
+from pymfree.util.utils import check_pymfree_type
 
 
 class LinearDerivative(object):
+    r""" A linear derivative operator in PyMfree.
 
-    def __init__(self, signature, function):
+    Can have several additive components, stored separately. A functional
+    form of the derivative can be provided via a DomainFunction.
+
+    Parameters
+    ----------
+    signature : str
+        The description of the operator via a signature. Must be a string. The
+        actual signature must be between two '$' characters. Each components
+        within the signature starts with a prefactor and then the derivative
+        components within round brackets. See example later on.
+
+    function : pymfree.core.function.DomainFunction, optional
+        If wanted, a functional form of a derivative can be provided, which is
+        of course not a dreivative operator. Defaults to None.
+
+    Raises
+    ------
+    TypeError
+        If function is given and not a DomainFunction or None.
+
+    See also
+    --------
+    pymfree.core.derivative.derivative_parser
+        Reads derivative signatures.
+    """
+
+    def __init__(self, signature, function=None):
         self.signature, comps = derivative_parser(signature)
         if not isinstance(function, DomainFunction):
-            raise TypeError("LineaeDerivative: Implementation of\
+            raise TypeError("LinearDerivative: Implementation of\
                  derivative functional form must be DomainFunction.")
         self.F = function
-
-# MAKE THIS A LIST COMPREHESION
-        self.components = []
-        for comp in comps:
-            self.components.append(DerivativeComponent(comp))
+        self.components = [DerivativeComponent(comp) for comp in comps]
 
     def __call__(self, x):
+        r""" Applies the eventually provided derivative to a coordinate.
+
+        This only makes sense if a DomainFunction was provided. Otherwise a
+        0 scalar is returned.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            The coordinates the derivative should be applied to. Must be
+            pymfree coordinate.
+
+        Returns
+        -------
+        torch.Tensor
+            A pymfree scalar with F(x), given a F was provided as
+            DomainFunction at construction. Otherwise Zeroes are returned.
+
+        Raises
+        ------
+        TypeError
+            If x is not a pymfree coordinate.
+        """
+        if not check_pymfree_type(x)['coordinate']:
+            raise TypeError("LinearDerivative: Input is not a coordinate.")
         return self.F(x)
 
     def __len__(self):
+        r""" Length operator.
+
+        Returns the number of derivative components.
+
+        Returns
+        -------
+        int
+            The length of the components vector, so the number of derivative
+            components.
+        """
 
         return len(self.components)
 
+    def __repr__(self):
+        r""" The class representation.
+
+        Prints the class string to stdout.
+
+        Returns
+        -------
+        stdout
+            Applies print to class string.
+        """
+        print(self)
+
     def __str__(self):
-        print("Signature")
-        print("---------")
-        print(self.signature, end="\n")
+        r""" The string representation of the class.
+
+        Provides information on the total derivative signature and the
+        attached function form.
+
+        Returns
+        -------
+        str
+            The string representation of the class.
+        """
+        one = "Signature\n"
+        one += "---------"
+        one += self.signature + "\n\n"
+        if self.F is not None:
+            one += "Function\n"
+            one += "--------"
+            one += str(self.F.F.__name__)
+        return one
 
 
 class DerivativeComponent(object):
+    r""" A representation of derivative components.
+
+    With component we mean a closed derivative operator of a certain order.
+    E.g. the 1/2*(d^2 / dx^2) in the Laplacian.
+
+    Parameters
+    ----------
+    signature : str
+        A valid derivative component signature. E.g. 0.5(0, 0)
+
+    Attributes
+    ----------
+    factor : float
+        The factor in front of the derivative. E.g. a 1/2 in 2D Laplacian.
+    component_vector : numpy.ndarray
+        A vector showing the derivative order of in each relevant component.
+        E.g. d^2/dxdz would be [1, 0, ,1]
+
+    See also
+    --------
+    pymfree.core.derivative.derivative_component_parser
+        Reads the str signatures of derivative components.
+    """
 
     def __init__(self, signature):
         self.signature, \
          self.factor, \
          self.component_vector = derivative_component_parser(signature)
-
         self.component_vector = np.array(self.component_vector)
         self.component_vector = np.stack(
             np.unique(self.component_vector, return_counts=True), axis=-1)
 
     def __len__(self):
+        r""" The order of the derivative component.
+        """  
         return len(self.component_vector)
 
     @property

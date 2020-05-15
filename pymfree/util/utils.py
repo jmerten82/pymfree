@@ -6,7 +6,6 @@ This collects utility functions.
 # Basic imports
 
 import torch
-from pymfree.core.function import Norm
 
 
 def check_pymfree_type(x):
@@ -20,33 +19,6 @@ def check_pymfree_type(x):
     out['else'] = isinstance(x, torch.Tensor) and \
         len(x.shape) > 4 and x.shape[1] == 1
     return out
-
-
-def any_norm_nn_search(support, query, norm, k=32):
-    """
-    Needs a docstring.
-    """
-    if not check_pymfree_type(support)['coordinate']:
-        raise TypeError("PyMfree nn search: Support must be coordinates")
-    if not check_pymfree_type(query)['coordinate']:
-        raise TypeError("PyMfree nn search: Query must be coordinates")
-    if not isinstance(norm, Norm):
-        raise TypeError(
-            "PyMfree nn search: Norm must be PyMfree norm.")
-    if not isinstance(k, int):
-        raise TypeError("PyMfree nn search: k must be integer.")
-
-    n = len(query)
-    device = support.device
-    result = torch.zeros(n, k, dtype=torch.float32, device=device)
-    indices = torch.zeros(n, k, dtype=torch.int64, device=device)
-    for i, element in enumerate(query):
-        current = torch.sub(support, element)
-        current = norm.no_checks(current)
-        dists, numbers = torch.sort(current)
-        result[i, :] = dists[: k]
-        indices[i, :] = numbers[: k]
-    return result, indices
 
 
 def scale_params(coordinates, min_in=-1., max_in=1.):
