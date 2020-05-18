@@ -8,8 +8,9 @@ derivatives. Their functional implementation and properties.
 
 import numpy as np
 import torch
-from pymfree.core.norm import DomainFunction
+from pymfree.core.function import DomainFunction
 from pymfree.util.utils import check_pymfree_type
+from pymfree.util.polynomial import count_dim_contrib
 
 
 class LinearDerivative(object):
@@ -43,7 +44,7 @@ class LinearDerivative(object):
 
     def __init__(self, signature, function=None):
         self.signature, comps = derivative_parser(signature)
-        if not isinstance(function, DomainFunction):
+        if not isinstance(function, DomainFunction) and function is not None:
             raise TypeError("LinearDerivative: Implementation of\
                  derivative functional form must be DomainFunction.")
         self.F = function
@@ -98,9 +99,9 @@ class LinearDerivative(object):
         Returns
         -------
         stdout
-            Applies print to class string.
+            Returns class string.
         """
-        print(self)
+        return self.__str__()
 
     def __str__(self):
         r""" The string representation of the class.
@@ -114,20 +115,20 @@ class LinearDerivative(object):
             The string representation of the class.
         """
         one = "Signature\n"
-        one += "---------"
+        one += "---------\n"
         one += self.signature + "\n\n"
         if self.F is not None:
             one += "Function\n"
             one += "--------"
             one += str(self.F.F.__name__)
-        return one
+        return str(one)
 
 
 class DerivativeComponent(object):
     r""" A representation of derivative components.
 
     With component we mean a closed derivative operator of a certain order.
-    E.g. the 1/2*(d^2 / dx^2) in the Laplacian.
+    E.g. the 1/2*(d^2 / dx^2) in the 2D Laplacian.
 
     Parameters
     ----------
@@ -152,13 +153,13 @@ class DerivativeComponent(object):
         self.signature, \
          self.factor, \
          self.component_vector = derivative_component_parser(signature)
-        self.component_vector = np.array(self.component_vector)
-        self.component_vector = np.stack(
-            np.unique(self.component_vector, return_counts=True), axis=-1)
+        self.component_vector = torch.tensor(self.component_vector)
+        self.component_vector = count_dim_contrib(
+            self.component_vector.unsqueeze(0), [0, 1, 2, 3, 4])
 
     def __len__(self):
         r""" The order of the derivative component.
-        """  
+        """
         return len(self.component_vector)
 
     @property
